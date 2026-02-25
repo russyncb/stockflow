@@ -3,7 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 // Import your database pool (adjust the path if necessary)
-const pool = require('./src/db/pool'); 
+const pool = require('./db/pool'); 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -13,14 +13,14 @@ app.use(cors());
 app.use(express.json()); // Parses incoming JSON requests
 
 // Test the Database Connection
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('Error connecting to PostgreSQL:', err.stack);
-  } else {
+pool.connect()
+  .then((client) => {
     console.log('Successfully connected to the StockFlow database!');
-    release(); // Return the client back to the pool
-  }
-});
+    client.release();
+  })
+  .catch((err) => {
+    console.error('Error connecting to PostgreSQL:', err.stack);
+  });
 
 // Basic test route
 app.get('/', (req, res) => {
