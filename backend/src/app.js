@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const authRoutes = require('./src/routes/authRoutes');
+const authRoutes = require('./routes/authRoutes');
 require('dotenv').config();
 
 // Import your database pool (adjust the path if necessary)
