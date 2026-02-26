@@ -70,4 +70,51 @@ const restockProduct = async (req, res) => {
     }
   };
 
-module.exports = { addProduct, getAllProducts, restockProduct };
+// ADMIN ONLY: Update product details (Name, Description, Price)
+const updateProduct = async (req, res) => {
+    const { id } = req.params;
+    const { name, description, price } = req.body;
+  
+    try {
+      const updated = await pool.query(
+        'UPDATE products SET name = $1, description = $2, price = $3 WHERE id = $4 RETURNING *',
+        [name, description, price, id]
+      );
+  
+      if (updated.rows.length === 0) {
+        return res.status(404).json({ error: 'Product not found.' });
+      }
+      
+      res.json({ message: 'Product updated successfully', product: updated.rows[0] });
+    } catch (error) {
+      console.error('Error updating product:', error.message);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+  
+  // ADMIN ONLY: Delete a product entirely
+  const deleteProduct = async (req, res) => {
+    const { id } = req.params;
+  
+    try {
+      const deleted = await pool.query('DELETE FROM products WHERE id = $1 RETURNING *', [id]);
+      
+      if (deleted.rows.length === 0) {
+        return res.status(404).json({ error: 'Product not found.' });
+      }
+  
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      // PostgreSQL error code 23503 is a Foreign Key Violation
+      // This stops you from deleting a product if it is tied to past sales receipts!
+      if (error.code === '23503') {
+        return res.status(400).json({ 
+          error: 'Cannot delete this product because it exists in past sales records. Try updating the stock to 0 instead to keep your accounting accurate.' 
+        });
+      }
+      console.error('Error deleting product:', error.message);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+
+module.exports = { addProduct, getAllProducts, restockProduct, updateProduct, deleteProduct };
