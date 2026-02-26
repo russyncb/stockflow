@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
+const salesRoutes = require('./routes/salesRoutes');
+
 require('dotenv').config();
 
 // Import your database pool (adjust the path if necessary)
@@ -15,6 +17,7 @@ app.use(cors());
 app.use(express.json()); // Parses incoming JSON requests
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/sales', salesRoutes);
 
 // Test the Database Connection
 pool.connect()
