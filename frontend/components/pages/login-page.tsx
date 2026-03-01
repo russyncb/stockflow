@@ -86,7 +86,7 @@ export function LoginPage() {
           </form>
 
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Use your backend user account. Create users via API or register.
+            Sign in with your username and password.
           </p>
         </div>
       </div>
