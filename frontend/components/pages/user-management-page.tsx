@@ -18,7 +18,7 @@ import type { User } from "@/lib/mock-data"
 type ModalType = "add" | "editRole" | "resetPassword" | "delete" | null
 
 export function UserManagementPage() {
-  const { users, addUser, deleteUser, updateUserRole } = useAppStore()
+  const { users, addUser, deleteUser, updateUserRole, resetUserPassword } = useAppStore()
   const [modal, setModal] = useState<ModalType>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
@@ -28,8 +28,17 @@ export function UserManagementPage() {
 
   const resetForm = () => { setFormUsername(""); setFormRole("staff"); setFormPassword(""); setSelectedUser(null); setModal(null) }
 
-  const handleAdd = () => { addUser({ username: formUsername, role: formRole }); resetForm() }
+  const handleAdd = () => {
+    if (!formPassword || formPassword.length < 6) return
+    addUser({ username: formUsername, role: formRole, password: formPassword })
+    resetForm()
+  }
   const handleEditRole = () => { if (!selectedUser) return; updateUserRole(selectedUser.id, formRole); resetForm() }
+  const handleResetPassword = () => {
+    if (!selectedUser || !formPassword || formPassword.length < 6) return
+    resetUserPassword(selectedUser.id, formPassword)
+    resetForm()
+  }
   const handleDelete = () => { if (!selectedUser) return; deleteUser(selectedUser.id); resetForm() }
 
   const openEditRole = (user: User) => { setSelectedUser(user); setFormRole(user.role); setModal("editRole") }
@@ -145,7 +154,7 @@ export function UserManagementPage() {
           </div>
           <DialogFooter>
             <button onClick={resetForm} className="h-9 rounded-lg border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-            <button onClick={handleAdd} disabled={!formUsername.trim()} className="h-9 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">Add User</button>
+            <button onClick={handleAdd} disabled={!formUsername.trim() || !formPassword || formPassword.length < 6} className="h-9 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">Add User</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -198,7 +207,7 @@ export function UserManagementPage() {
           </div>
           <DialogFooter>
             <button onClick={resetForm} className="h-9 rounded-lg border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">Cancel</button>
-            <button onClick={resetForm} disabled={!formPassword.trim()} className="h-9 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">Reset Password</button>
+            <button onClick={handleResetPassword} disabled={!formPassword.trim() || formPassword.length < 6} className="h-9 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">Reset Password</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

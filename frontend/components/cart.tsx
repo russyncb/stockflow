@@ -8,10 +8,11 @@ import type { Transaction } from "@/lib/mock-data"
 type CheckoutStep = "cart" | "payment" | "receipt"
 
 export function Cart() {
-  const { cart, removeFromCart, updateCartQuantity, clearCart, processSale } = useAppStore()
+  const { cart, removeFromCart, updateCartQuantity, clearCart, processSale, error: saleError } = useAppStore()
   const [step, setStep] = useState<CheckoutStep>("cart")
   const [paymentInput, setPaymentInput] = useState("")
   const [completedTransaction, setCompletedTransaction] = useState<Transaction | null>(null)
+  const [confirming, setConfirming] = useState(false)
 
   const total = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
   const paymentAmount = parseFloat(paymentInput) || 0
@@ -23,10 +24,14 @@ export function Cart() {
     setStep("payment")
   }
 
-  function handleConfirmSale() {
-    const txn = processSale(paymentAmount)
-    setCompletedTransaction(txn)
-    setStep("receipt")
+  async function handleConfirmSale() {
+    setConfirming(true)
+    const txn = await processSale(paymentAmount)
+    setConfirming(false)
+    if (txn) {
+      setCompletedTransaction(txn)
+      setStep("receipt")
+    }
   }
 
   function handleNewSale() {
@@ -334,13 +339,16 @@ export function Cart() {
 
         {/* Confirm button */}
         <div className="border-t border-border px-5 py-4">
+          {saleError && (
+            <p className="mb-2 text-center text-xs text-destructive">{saleError}</p>
+          )}
           <button
             onClick={handleConfirmSale}
-            disabled={!isPaymentValid}
+            disabled={!isPaymentValid || confirming}
             className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <CheckCircle2 className="h-4 w-4" />
-            Confirm Sale
+            {confirming ? "Processing…" : "Confirm Sale"}
           </button>
           <p className="text-center text-[11px] text-muted-foreground mt-2">
             This will deduct stock and record the transaction

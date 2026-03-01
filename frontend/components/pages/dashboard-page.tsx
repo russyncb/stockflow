@@ -1,10 +1,17 @@
 "use client"
 
+import { useEffect } from "react"
 import { Package, DollarSign, ShoppingCart, AlertTriangle, ArrowUpRight, ArrowDownRight, Receipt } from "lucide-react"
 import { useAppStore } from "@/lib/store"
 
 export function DashboardPage() {
-  const { products, transactions, stockMovements } = useAppStore()
+  const { currentUser, products, transactions, stockMovements, loadDashboardData } = useAppStore()
+
+  useEffect(() => {
+    if (currentUser?.role === "admin") {
+      loadDashboardData()
+    }
+  }, [currentUser?.role, loadDashboardData])
 
   const totalProducts = products.length
   const inventoryValue = products.reduce((sum, p) => sum + p.price * p.stock, 0)

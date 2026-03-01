@@ -80,4 +80,52 @@ const processSale = async (req, res) => {
   }
 };
 
-module.exports = { processSale };
+// GET recent sales (for dashboard) - returns sales with items and cashier
+const getSales = async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+  try {
+    const result = await pool.query(
+      `SELECT s.id, s.total_amount, s.created_at, u.username AS cashier
+       FROM sales s
+       JOIN users u ON s.user_id = u.id
+       ORDER BY s.created_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+    const sales = result.rows;
+    const salesWithItems = await Promise.all(
+      sales.map(async (sale) => {
+        const itemsRes = await pool.query(
+          `SELECT si.quantity, si.unit_price, p.name AS product_name
+           FROM sale_items si
+           JOIN products p ON si.product_id = p.id
+           WHERE si.sale_id = $1`,
+          [sale.id]
+        );
+        const items = itemsRes.rows.map((row) => ({
+          productName: row.product_name,
+          quantity: parseInt(row.quantity, 10),
+          unitPrice: parseFloat(row.unit_price),
+          lineTotal: parseFloat(row.unit_price) * parseInt(row.quantity, 10),
+        }));
+        return {
+          id: String(sale.id),
+          subtotal: parseFloat(sale.total_amount),
+          taxTotal: 0,
+          grandTotal: parseFloat(sale.total_amount),
+          amountPaid: parseFloat(sale.total_amount),
+          change: 0,
+          cashier: sale.cashier,
+          timestamp: sale.created_at ? new Date(sale.created_at).toISOString().slice(0, 19).replace('T', ' ') : '',
+          items,
+        };
+      })
+    );
+    res.json(salesWithItems);
+  } catch (error) {
+    console.error('Error fetching sales:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+module.exports = { processSale, getSales };

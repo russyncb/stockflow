@@ -7,21 +7,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export function LoginPage() {
-  const { login } = useAppStore()
+  const { login, error: storeError, loading } = useAppStore()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const displayError = storeError ?? error
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    if (!username.trim()) {
-      setError("Please enter a username.")
+    if (!username.trim() || !password) {
+      setError("Please enter username and password.")
       return
     }
-    const success = login(username.trim())
+    const success = await login(username.trim(), password)
     if (!success) {
-      setError("Invalid username. Try: admin_maria or staff_james")
+      setError("Invalid username or password.")
     }
   }
 
@@ -68,35 +69,25 @@ export function LoginPage() {
               />
             </div>
 
-            {error && (
+            {displayError && (
               <div className="rounded-lg bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
-                {error}
+                {displayError}
               </div>
             )}
 
             <button
               type="submit"
-              className="group mt-1 flex h-10 items-center justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98]"
+              disabled={loading}
+              className="group mt-1 flex h-10 items-center justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
             >
-              Sign In
+              {loading ? "Signing in…" : "Sign In"}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
           </form>
 
-          {/* Demo accounts */}
-          <div className="mt-4 rounded-lg bg-muted px-4 py-3">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Demo Accounts</p>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Admin access</span>
-                <code className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">admin_maria</code>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Staff access</span>
-                <code className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">staff_james</code>
-              </div>
-            </div>
-          </div>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Use your backend user account. Create users via API or register.
+          </p>
         </div>
       </div>
     </div>
