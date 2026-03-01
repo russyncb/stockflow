@@ -229,7 +229,8 @@ export function DashboardPage() {
 
       {/* Transactions — large screen dialog */}
       <Dialog open={transactionsOpen} onOpenChange={setTransactionsOpen}>
-        <DialogContent className="w-[95vw] max-w-[1200px] h-[90vh] max-h-[900px] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogContent className="w-[95vw] max-w-[1200px] h-[90vh] max-h-[900px] overflow-hidden flex flex-col p-0 gap-0" aria-describedby={undefined}>
+          <DialogTitle className="sr-only">Recent Transactions</DialogTitle>
           <div className="shrink-0 px-6 py-5 border-b border-border bg-card">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -304,7 +305,8 @@ export function DashboardPage() {
 
       {/* Stock Movements — large screen dialog */}
       <Dialog open={movementsOpen} onOpenChange={setMovementsOpen}>
-        <DialogContent className="w-[95vw] max-w-[1200px] h-[90vh] max-h-[900px] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogContent className="w-[95vw] max-w-[1200px] h-[90vh] max-h-[900px] overflow-hidden flex flex-col p-0 gap-0" aria-describedby={undefined}>
+          <DialogTitle className="sr-only">Stock Movements</DialogTitle>
           <div className="shrink-0 px-6 py-5 border-b border-border bg-card">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
