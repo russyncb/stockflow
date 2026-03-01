@@ -11,6 +11,9 @@ import * as api from "@/lib/api"
 type View = "login" | "pos" | "dashboard" | "inventory" | "users"
 
 function mapApiProduct(p: api.ApiProduct): Product {
+  const taxRate = p.tax_rate != null
+    ? (typeof p.tax_rate === "string" ? parseFloat(p.tax_rate) : p.tax_rate)
+    : 0
   return {
     id: String(p.id),
     name: p.name,
@@ -19,7 +22,7 @@ function mapApiProduct(p: api.ApiProduct): Product {
     stock: p.stock_quantity,
     category: "",
     sku: "",
-    taxRate: 0.15,
+    taxRate: Number.isFinite(taxRate) ? taxRate : 0,
   }
 }
 
@@ -300,6 +303,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           price: product.price,
           stock_quantity: product.stock,
           category_id: null,
+          tax_rate: product.taxRate ?? 0,
         })
         await fetchProducts()
       } catch (e) {
@@ -317,6 +321,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           name: updates.name,
           description: updates.description,
           price: updates.price,
+          tax_rate: updates.taxRate,
         })
         await fetchProducts()
       } catch (e) {

@@ -3,21 +3,35 @@
 import { useState } from "react"
 import { Minus, Plus, Trash2, ShoppingCart, Receipt, ArrowLeft, CheckCircle2, Banknote, Printer } from "lucide-react"
 import { useAppStore } from "@/lib/store"
-import type { Transaction } from "@/lib/mock-data"
+import type { Transaction, Currency, PaymentMethod } from "@/lib/mock-data"
+import { convertCurrency, formatCurrency, CURRENCY_SYMBOLS } from "@/lib/mock-data"
 
 type CheckoutStep = "cart" | "payment" | "receipt"
+
+const CURRENCIES: Currency[] = ["USD", "ZAR", "ZiG"]
+const PAYMENT_METHODS: PaymentMethod[] = ["Cash", "Swipe", "EcoCash"]
 
 export function Cart() {
   const { cart, removeFromCart, updateCartQuantity, clearCart, processSale, error: saleError } = useAppStore()
   const [step, setStep] = useState<CheckoutStep>("cart")
   const [paymentInput, setPaymentInput] = useState("")
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>("USD")
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("Cash")
   const [completedTransaction, setCompletedTransaction] = useState<Transaction | null>(null)
   const [confirming, setConfirming] = useState(false)
 
-  const total = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+  // Totals in USD (base): subtotal, tax per product, grand total
+  const subtotalUSD = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+  const taxTotalUSD = cart.reduce((sum, item) => {
+    const lineTotal = item.product.price * item.quantity
+    return sum + lineTotal * (item.product.taxRate ?? 0)
+  }, 0)
+  const grandTotalUSD = subtotalUSD + taxTotalUSD
+
+  const grandTotalInCurrency = convertCurrency(grandTotalUSD, selectedCurrency)
   const paymentAmount = parseFloat(paymentInput) || 0
-  const change = paymentAmount - total
-  const isPaymentValid = paymentAmount >= total && paymentInput.trim() !== ""
+  const change = paymentAmount - grandTotalInCurrency
+  const isPaymentValid = paymentAmount >= grandTotalInCurrency && paymentInput.trim() !== ""
 
   function handleProceedToPayment() {
     setPaymentInput("")
@@ -26,7 +40,7 @@ export function Cart() {
 
   async function handleConfirmSale() {
     setConfirming(true)
-    const txn = await processSale(paymentAmount)
+    const txn = await processSale(paymentAmount, selectedCurrency, selectedPaymentMethod)
     setConfirming(false)
     if (txn) {
       setCompletedTransaction(txn)
@@ -48,12 +62,13 @@ export function Cart() {
   function handlePrintReceipt() {
     if (!completedTransaction) return
     const txn = completedTransaction
+    const fmt = (n: number) => formatCurrency(n, txn.currency)
     const itemsHtml = txn.items
       .map(
         (item) =>
           `<tr>
             <td style="text-align:left;padding:2px 0;">${item.quantity}x ${item.productName}</td>
-            <td style="text-align:right;padding:2px 0;">$${item.lineTotal.toFixed(2)}</td>
+            <td style="text-align:right;padding:2px 0;">${fmt(item.lineTotal + item.tax)}</td>
           </tr>`
       )
       .join("")
@@ -83,30 +98,24 @@ export function Cart() {
       <body>
         <div class="center">
           <p class="bold" style="font-size:16px;">STOCKFLOW</p>
-          <p style="font-size:10px;margin-top:4px;">Inventory & Sales Management</p>
+          <p style="font-size:10px;margin-top:4px;">Inventory & Sales Management · Zimbabwe</p>
         </div>
         <div class="divider"></div>
         <p style="font-size:10px;">Receipt #${txn.id.slice(-6)}</p>
         <p style="font-size:10px;">${txn.timestamp}</p>
         <p style="font-size:10px;">Cashier: ${txn.cashier}</p>
+        <p style="font-size:10px;">Payment: ${txn.paymentMethod}</p>
         <div class="divider"></div>
         <table>
           ${itemsHtml}
         </table>
         <div class="divider"></div>
         <table>
-          <tr>
-            <td style="text-align:left;padding:2px 0;">Subtotal</td>
-            <td style="text-align:right;padding:2px 0;">$${txn.subtotal.toFixed(2)}</td>
-          </tr>
-          <tr>
-            <td style="text-align:left;padding:2px 0;">Amount Paid</td>
-            <td style="text-align:right;padding:2px 0;">$${txn.amountPaid.toFixed(2)}</td>
-          </tr>
-          <tr class="total-row">
-            <td style="text-align:left;">Change</td>
-            <td style="text-align:right;">$${txn.change.toFixed(2)}</td>
-          </tr>
+          <tr><td style="text-align:left;padding:2px 0;">Subtotal</td><td style="text-align:right;padding:2px 0;">${fmt(txn.subtotal)}</td></tr>
+          ${txn.taxTotal > 0 ? `<tr><td style="text-align:left;padding:2px 0;">Tax</td><td style="text-align:right;padding:2px 0;">${fmt(txn.taxTotal)}</td></tr>` : ""}
+          <tr><td style="text-align:left;padding:2px 0;">Total</td><td style="text-align:right;padding:2px 0;">${fmt(txn.grandTotal)}</td></tr>
+          <tr><td style="text-align:left;padding:2px 0;">Amount Paid</td><td style="text-align:right;padding:2px 0;">${fmt(txn.amountPaid)}</td></tr>
+          <tr class="total-row"><td style="text-align:left;">Change</td><td style="text-align:right;">${fmt(txn.change)}</td></tr>
         </table>
         <div class="divider"></div>
         <div class="center" style="margin-top:8px;">
@@ -150,7 +159,9 @@ export function Cart() {
                   <span className="text-muted-foreground">
                     {item.quantity}x {item.productName}
                   </span>
-                  <span className="font-mono text-card-foreground">${item.lineTotal.toFixed(2)}</span>
+                  <span className="font-mono text-card-foreground">
+                    {formatCurrency(item.lineTotal + item.tax, completedTransaction.currency)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -159,19 +170,27 @@ export function Cart() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-mono font-semibold text-card-foreground">
-                  ${completedTransaction.subtotal.toFixed(2)}
+                  {formatCurrency(completedTransaction.subtotal, completedTransaction.currency)}
                 </span>
               </div>
+              {completedTransaction.taxTotal > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Tax</span>
+                  <span className="font-mono text-card-foreground">
+                    {formatCurrency(completedTransaction.taxTotal, completedTransaction.currency)}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Paid</span>
+                <span className="text-muted-foreground">Paid ({completedTransaction.paymentMethod})</span>
                 <span className="font-mono text-card-foreground">
-                  ${completedTransaction.amountPaid.toFixed(2)}
+                  {formatCurrency(completedTransaction.amountPaid, completedTransaction.currency)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm font-bold">
                 <span className="text-success">Change</span>
                 <span className="font-mono text-success">
-                  ${completedTransaction.change.toFixed(2)}
+                  {formatCurrency(completedTransaction.change, completedTransaction.currency)}
                 </span>
               </div>
             </div>
@@ -230,13 +249,14 @@ export function Cart() {
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <div className="rounded-lg border border-border bg-muted/50 p-4 mb-4">
             <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold mb-3">
-              Order Summary
+              Order Summary (USD)
             </p>
             <ul className="flex flex-col gap-2">
               {cart.map((item) => (
                 <li key={item.product.id} className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">
                     {item.quantity}x {item.product.name}
+                    {(item.product.taxRate ?? 0) > 0 && <span className="ml-1 text-[10px]">+tax</span>}
                   </span>
                   <span className="font-mono text-card-foreground">
                     ${(item.product.price * item.quantity).toFixed(2)}
@@ -244,19 +264,68 @@ export function Cart() {
                 </li>
               ))}
             </ul>
-            <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
-              <span className="text-sm font-semibold text-card-foreground">Total Due</span>
-              <span className="text-lg font-bold text-primary font-mono">${total.toFixed(2)}</span>
+            <div className="mt-3 pt-3 border-t border-border flex flex-col gap-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-mono">${subtotalUSD.toFixed(2)}</span>
+              </div>
+              {taxTotalUSD > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Tax</span>
+                  <span className="font-mono">${taxTotalUSD.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-card-foreground">Total Due</span>
+                <span className="text-lg font-bold text-primary font-mono">${grandTotalUSD.toFixed(2)}</span>
+              </div>
             </div>
           </div>
 
-          {/* Payment input */}
+          {/* Currency & payment (Zimbabwe: USD / ZAR / ZiG · Cash / Swipe / EcoCash) */}
+          <div className="mb-4">
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Pay in</p>
+            <div className="flex gap-2 mb-3">
+              {CURRENCIES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setSelectedCurrency(c)}
+                  className={`flex-1 h-9 rounded-lg text-xs font-medium transition-colors border ${
+                    selectedCurrency === c ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Payment method</p>
+            <div className="flex gap-2">
+              {PAYMENT_METHODS.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setSelectedPaymentMethod(m)}
+                  className={`flex-1 h-9 rounded-lg text-xs font-medium transition-colors border ${
+                    selectedPaymentMethod === m ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] text-muted-foreground">Rate: USD 1 = ZAR 20 = ZiG 40</p>
+          </div>
+
+          {/* Payment input (selected currency) */}
           <div className="mb-4">
             <label htmlFor="payment-amount" className="block text-[11px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">
-              Customer Payment
+              Customer payment ({selectedCurrency})
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-mono">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-mono">
+                {CURRENCY_SYMBOLS[selectedCurrency].trim() || "$"}
+              </span>
               <input
                 id="payment-amount"
                 type="number"
@@ -266,28 +335,29 @@ export function Cart() {
                 onChange={(e) => setPaymentInput(e.target.value)}
                 placeholder="0.00"
                 autoFocus
-                className="h-11 w-full rounded-lg border border-input bg-background pl-8 pr-4 text-lg font-mono font-bold text-foreground placeholder:text-muted-foreground/40 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-4 text-lg font-mono font-bold text-foreground placeholder:text-muted-foreground/40 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
               />
             </div>
           </div>
 
-          {/* Quick amount buttons */}
+          {/* Quick amounts (selected currency) */}
           <div className="mb-4">
-            <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Quick Amounts</p>
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Quick amounts</p>
             <div className="grid grid-cols-3 gap-2">
               {[
-                Math.ceil(total),
-                Math.ceil(total / 5) * 5,
-                Math.ceil(total / 10) * 10,
-                Math.ceil(total / 20) * 20,
-                50,
-                100,
+                grandTotalInCurrency,
+                Math.ceil(grandTotalInCurrency / 5) * 5,
+                Math.ceil(grandTotalInCurrency / 10) * 10,
+                Math.ceil(grandTotalInCurrency / 20) * 20,
+                selectedCurrency === "USD" ? 50 : selectedCurrency === "ZAR" ? 1000 : 2000,
+                selectedCurrency === "USD" ? 100 : selectedCurrency === "ZAR" ? 2000 : 4000,
               ]
-                .filter((v, i, arr) => arr.indexOf(v) === i && v >= total)
+                .filter((v, i, arr) => arr.indexOf(v) === i && v >= grandTotalInCurrency)
                 .slice(0, 6)
                 .map((amount) => (
                   <button
                     key={amount}
+                    type="button"
                     onClick={() => setPaymentInput(amount.toFixed(2))}
                     className={`flex h-9 items-center justify-center rounded-lg text-xs font-mono font-medium transition-colors border ${
                       paymentInput === amount.toFixed(2)
@@ -295,13 +365,13 @@ export function Cart() {
                         : "border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
-                    ${amount.toFixed(2)}
+                    {formatCurrency(amount, selectedCurrency)}
                   </button>
                 ))}
             </div>
           </div>
 
-          {/* Change display */}
+          {/* Change (selected currency) */}
           <div
             className={`rounded-lg border p-4 transition-colors ${
               paymentInput.trim() === ""
@@ -312,7 +382,7 @@ export function Cart() {
             }`}
           >
             <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">
-              Change Due
+              Change due ({selectedCurrency})
             </p>
             <p
               className={`text-2xl font-bold font-mono ${
@@ -324,14 +394,14 @@ export function Cart() {
               }`}
             >
               {paymentInput.trim() === ""
-                ? "$0.00"
+                ? formatCurrency(0, selectedCurrency)
                 : isPaymentValid
-                  ? `$${change.toFixed(2)}`
-                  : `-$${Math.abs(change).toFixed(2)}`}
+                  ? formatCurrency(change, selectedCurrency)
+                  : formatCurrency(-Math.abs(change), selectedCurrency)}
             </p>
             {paymentInput.trim() !== "" && !isPaymentValid && (
               <p className="text-[11px] text-destructive mt-1">
-                Insufficient payment. Need ${Math.abs(change).toFixed(2)} more.
+                Need {formatCurrency(Math.abs(change), selectedCurrency)} more.
               </p>
             )}
           </div>
@@ -426,7 +496,8 @@ export function Cart() {
                     </button>
                   </div>
                   <span className="text-sm font-bold text-primary font-mono">
-                    ${(item.product.price * item.quantity).toFixed(2)}
+                    ${(item.product.price * item.quantity * (1 + (item.product.taxRate ?? 0))).toFixed(2)}
+                    {(item.product.taxRate ?? 0) > 0 && <span className="text-[10px] text-muted-foreground font-normal"> inc. tax</span>}
                   </span>
                 </div>
               </li>
@@ -440,11 +511,17 @@ export function Cart() {
         <div className="border-t border-border px-5 py-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Subtotal</span>
-            <span className="text-sm text-muted-foreground font-mono">${total.toFixed(2)}</span>
+            <span className="text-sm text-muted-foreground font-mono">${subtotalUSD.toFixed(2)}</span>
           </div>
+          {taxTotalUSD > 0 && (
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Tax</span>
+              <span className="text-sm text-muted-foreground font-mono">${taxTotalUSD.toFixed(2)}</span>
+            </div>
+          )}
           <div className="mb-4 flex items-center justify-between border-t border-border pt-3">
             <span className="text-sm font-semibold text-card-foreground">Total</span>
-            <span className="text-xl font-bold text-primary font-mono">${total.toFixed(2)}</span>
+            <span className="text-xl font-bold text-primary font-mono">${grandTotalUSD.toFixed(2)}</span>
           </div>
           <div className="flex flex-col gap-2">
             <button

@@ -63,7 +63,7 @@ export async function register(body: RegisterBody): Promise<{ message: string; u
   });
 }
 
-// --- Products (backend: id, name, description, price, stock_quantity, category_id) ---
+// --- Products (backend: id, name, description, price, stock_quantity, category_id, tax_rate) ---
 export interface ApiProduct {
   id: number;
   name: string;
@@ -71,6 +71,7 @@ export interface ApiProduct {
   price: string | number;
   stock_quantity: number;
   category_id: number | null;
+  tax_rate?: string | number;
 }
 
 export async function getProducts(): Promise<ApiProduct[]> {
@@ -83,6 +84,7 @@ export async function addProduct(body: {
   price: number;
   stock_quantity: number;
   category_id?: number | null;
+  tax_rate?: number;
 }): Promise<{ product: ApiProduct }> {
   return request("/api/products", {
     method: "POST",
@@ -92,7 +94,7 @@ export async function addProduct(body: {
 
 export async function updateProduct(
   id: string,
-  body: { name?: string; description?: string; price?: number }
+  body: { name?: string; description?: string; price?: number; tax_rate?: number }
 ): Promise<{ product: ApiProduct }> {
   return request(`/api/products/${id}`, {
     method: "PUT",

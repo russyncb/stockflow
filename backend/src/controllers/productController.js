@@ -2,12 +2,13 @@ const pool = require('../db/pool');
 
 // ADMIN ONLY: Add a new product
 const addProduct = async (req, res) => {
-  const { name, description, price, stock_quantity, category_id } = req.body;
+  const { name, description, price, stock_quantity, category_id, tax_rate } = req.body;
+  const taxRate = tax_rate != null ? Number(tax_rate) : 0;
 
   try {
     const newProduct = await pool.query(
-      'INSERT INTO products (name, description, price, stock_quantity, category_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name, description, price, stock_quantity || 0, category_id || null]
+      'INSERT INTO products (name, description, price, stock_quantity, category_id, tax_rate) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [name, description, price, stock_quantity || 0, category_id || null, taxRate]
     );
     res.status(201).json({ message: 'Product added successfully', product: newProduct.rows[0] });
   } catch (error) {
@@ -70,15 +71,23 @@ const restockProduct = async (req, res) => {
     }
   };
 
-// ADMIN ONLY: Update product details (Name, Description, Price)
+// ADMIN ONLY: Update product details (Name, Description, Price, Tax rate)
 const updateProduct = async (req, res) => {
     const { id } = req.params;
-    const { name, description, price } = req.body;
+    const { name, description, price, tax_rate } = req.body;
+    const taxRate = tax_rate != null ? Number(tax_rate) : undefined;
   
     try {
+      const updates = ['name = $1', 'description = $2', 'price = $3'];
+      const values = [name, description, price];
+      if (taxRate !== undefined) {
+        updates.push('tax_rate = $4');
+        values.push(taxRate);
+      }
+      values.push(id);
       const updated = await pool.query(
-        'UPDATE products SET name = $1, description = $2, price = $3 WHERE id = $4 RETURNING *',
-        [name, description, price, id]
+        `UPDATE products SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING *`,
+        values
       );
   
       if (updated.rows.length === 0) {

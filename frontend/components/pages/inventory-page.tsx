@@ -29,31 +29,50 @@ export function InventoryPage() {
   const [formDescription, setFormDescription] = useState("")
   const [formCategory, setFormCategory] = useState("")
   const [formSku, setFormSku] = useState("")
+  const [formTaxRate, setFormTaxRate] = useState("0")
   const [restockQty, setRestockQty] = useState("")
 
   const resetForm = () => {
     setFormName(""); setFormPrice(""); setFormStock(""); setFormDescription("")
-    setFormCategory(""); setFormSku(""); setRestockQty("")
+    setFormCategory(""); setFormSku(""); setFormTaxRate("0"); setRestockQty("")
     setSelectedProduct(null); setModal(null)
   }
 
   const openEdit = (product: Product) => {
     setSelectedProduct(product); setFormName(product.name); setFormPrice(product.price.toString())
     setFormDescription(product.description); setFormCategory(product.category); setFormSku(product.sku)
+    setFormTaxRate(String(Math.round((product.taxRate ?? 0) * 100)))
     setModal("edit")
   }
 
   const openRestock = (product: Product) => { setSelectedProduct(product); setRestockQty(""); setModal("restock") }
   const openDelete = (product: Product) => { setSelectedProduct(product); setModal("delete") }
 
+  const taxRateDecimal = (parseFloat(formTaxRate) || 0) / 100
+
   const handleAdd = () => {
-    addProduct({ name: formName, price: parseFloat(formPrice) || 0, stock: parseInt(formStock) || 0, description: formDescription, category: formCategory, sku: formSku })
+    addProduct({
+      name: formName,
+      price: parseFloat(formPrice) || 0,
+      stock: parseInt(formStock) || 0,
+      description: formDescription,
+      category: formCategory,
+      sku: formSku,
+      taxRate: taxRateDecimal,
+    })
     resetForm()
   }
 
   const handleEdit = () => {
     if (!selectedProduct) return
-    updateProduct(selectedProduct.id, { name: formName, price: parseFloat(formPrice) || 0, description: formDescription, category: formCategory, sku: formSku })
+    updateProduct(selectedProduct.id, {
+      name: formName,
+      price: parseFloat(formPrice) || 0,
+      description: formDescription,
+      category: formCategory,
+      sku: formSku,
+      taxRate: taxRateDecimal,
+    })
     resetForm()
   }
 
@@ -171,6 +190,10 @@ export function InventoryPage() {
               <Label htmlFor="add-stock">Initial Stock</Label>
               <Input id="add-stock" type="number" value={formStock} onChange={(e) => setFormStock(e.target.value)} placeholder="0" />
             </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="add-tax">Tax (%)</Label>
+              <Input id="add-tax" type="number" min={0} max={100} step={0.5} value={formTaxRate} onChange={(e) => setFormTaxRate(e.target.value)} placeholder="0 or 15" />
+            </div>
             <div className="col-span-2 flex flex-col gap-2">
               <Label htmlFor="add-desc">Description</Label>
               <Input id="add-desc" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Short description" />
@@ -206,6 +229,10 @@ export function InventoryPage() {
             <div className="flex flex-col gap-2">
               <Label htmlFor="edit-price">{'Price ($)'}</Label>
               <Input id="edit-price" type="number" step="0.01" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="edit-tax">Tax (%)</Label>
+              <Input id="edit-tax" type="number" min={0} max={100} step={0.5} value={formTaxRate} onChange={(e) => setFormTaxRate(e.target.value)} placeholder="0 or 15" />
             </div>
             <div className="col-span-2 flex flex-col gap-2">
               <Label htmlFor="edit-desc">Description</Label>
