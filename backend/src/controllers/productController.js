@@ -17,10 +17,14 @@ const addProduct = async (req, res) => {
   }
 };
 
-// ADMIN & STAFF: View all products
+// ADMIN & STAFF: View all products (with category name)
 const getAllProducts = async (req, res) => {
   try {
-    const products = await pool.query('SELECT * FROM products ORDER BY id DESC');
+    const products = await pool.query(
+      `SELECT p.*, c.name AS category_name FROM products p
+       LEFT JOIN categories c ON p.category_id = c.id
+       ORDER BY p.id DESC`
+    );
     res.json(products.rows);
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -71,18 +75,32 @@ const restockProduct = async (req, res) => {
     }
   };
 
-// ADMIN ONLY: Update product details (Name, Description, Price, Tax rate)
+// ADMIN ONLY: Update product details (Name, Description, Price, Tax rate, Stock quantity, Category)
 const updateProduct = async (req, res) => {
     const { id } = req.params;
-    const { name, description, price, tax_rate } = req.body;
+    const { name, description, price, tax_rate, stock_quantity, category_id } = req.body;
     const taxRate = tax_rate != null ? Number(tax_rate) : undefined;
+    const stockQty = stock_quantity != null ? parseInt(stock_quantity, 10) : undefined;
+    const categoryId = category_id !== undefined ? (category_id === null || category_id === '' ? null : Number(category_id)) : undefined;
   
     try {
       const updates = ['name = $1', 'description = $2', 'price = $3'];
       const values = [name, description, price];
+      let idx = 4;
       if (taxRate !== undefined) {
-        updates.push('tax_rate = $4');
+        updates.push(`tax_rate = $${idx}`);
         values.push(taxRate);
+        idx++;
+      }
+      if (stockQty !== undefined && !Number.isNaN(stockQty)) {
+        updates.push(`stock_quantity = $${idx}`);
+        values.push(stockQty);
+        idx++;
+      }
+      if (categoryId !== undefined) {
+        updates.push(`category_id = $${idx}`);
+        values.push(categoryId);
+        idx++;
       }
       values.push(id);
       const updated = await pool.query(

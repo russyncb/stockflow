@@ -63,7 +63,24 @@ export async function register(body: RegisterBody): Promise<{ message: string; u
   });
 }
 
-// --- Products (backend: id, name, description, price, stock_quantity, category_id, tax_rate) ---
+// --- Categories ---
+export interface ApiCategory {
+  id: number;
+  name: string;
+}
+
+export async function getCategories(): Promise<ApiCategory[]> {
+  return request<ApiCategory[]>("/api/categories");
+}
+
+export async function addCategory(name: string): Promise<{ category: ApiCategory }> {
+  return request("/api/categories", {
+    method: "POST",
+    body: JSON.stringify({ name: name.trim() }),
+  });
+}
+
+// --- Products (backend: id, name, description, price, stock_quantity, category_id, category_name, tax_rate) ---
 export interface ApiProduct {
   id: number;
   name: string;
@@ -71,6 +88,7 @@ export interface ApiProduct {
   price: string | number;
   stock_quantity: number;
   category_id: number | null;
+  category_name?: string | null;
   tax_rate?: string | number;
 }
 
@@ -94,7 +112,7 @@ export async function addProduct(body: {
 
 export async function updateProduct(
   id: string,
-  body: { name?: string; description?: string; price?: number; tax_rate?: number }
+  body: { name?: string; description?: string; price?: number; tax_rate?: number; stock_quantity?: number; category_id?: number | null }
 ): Promise<{ product: ApiProduct }> {
   return request(`/api/products/${id}`, {
     method: "PUT",

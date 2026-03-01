@@ -5,6 +5,7 @@ const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const salesRoutes = require('./routes/salesRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 require('dotenv').config();
 
 // Import your database pool (adjust the path if necessary)
@@ -20,6 +21,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
 
 // Test the Database Connection

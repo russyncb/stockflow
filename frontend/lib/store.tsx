@@ -8,7 +8,7 @@ import {
 } from "@/lib/mock-data"
 import * as api from "@/lib/api"
 
-type View = "login" | "pos" | "dashboard" | "inventory" | "users"
+type View = "login" | "pos" | "dashboard" | "inventory" | "users" | "reports"
 
 function mapApiProduct(p: api.ApiProduct): Product {
   const taxRate = p.tax_rate != null
@@ -20,9 +20,9 @@ function mapApiProduct(p: api.ApiProduct): Product {
     description: p.description ?? "",
     price: typeof p.price === "string" ? parseFloat(p.price) : p.price,
     stock: p.stock_quantity,
-    category: "",
-    sku: "",
+    category: p.category_name ?? "",
     taxRate: Number.isFinite(taxRate) ? taxRate : 0,
+    categoryId: p.category_id ?? undefined,
   }
 }
 
@@ -52,7 +52,6 @@ function mapApiSaleToTransaction(s: api.ApiSale): Transaction {
     id: s.id,
     items: s.items.map((i) => ({
       productName: i.productName,
-      sku: "",
       quantity: i.quantity,
       unitPrice: i.unitPrice,
       lineTotal: i.lineTotal,
@@ -90,8 +89,8 @@ interface AppState {
   updateCartQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
   processSale: (amountPaidInCurrency: number, currency?: Currency, paymentMethod?: PaymentMethod) => Promise<Transaction | null>
-  addProduct: (product: Omit<Product, "id">) => void
-  updateProduct: (id: string, updates: Partial<Product>) => void
+  addProduct: (product: Omit<Product, "id"> & { categoryId?: number | null }) => void
+  updateProduct: (id: string, updates: Partial<Product> & { categoryId?: number | null; stock?: number }) => void
   deleteProduct: (id: string) => void
   restockProduct: (id: string, quantity: number) => void
   addUser: (user: Omit<User, "id" | "dateCreated"> & { password: string }) => void
@@ -259,7 +258,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const tax = lineTotal * i.product.taxRate
         return {
           productName: i.product.name,
-          sku: i.product.sku,
           quantity: i.quantity,
           unitPrice: i.product.price,
           lineTotal,
@@ -322,6 +320,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           description: updates.description,
           price: updates.price,
           tax_rate: updates.taxRate,
+          stock_quantity: (updates as { stock?: number }).stock,
+          category_id: (updates as { categoryId?: number | null }).categoryId,
         })
         await fetchProducts()
       } catch (e) {

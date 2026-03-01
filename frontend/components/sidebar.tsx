@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Sun,
   Moon,
+  FileText,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
@@ -21,6 +22,7 @@ const adminNav = [
   { id: "pos" as const, label: "Point of Sale", icon: ShoppingCart },
   { id: "inventory" as const, label: "Inventory", icon: Package },
   { id: "users" as const, label: "Users", icon: Users },
+  { id: "reports" as const, label: "Reports", icon: FileText },
 ]
 
 const staffNav = [

@@ -8,6 +8,7 @@ import { DashboardPage } from "@/components/pages/dashboard-page"
 import { POSPage } from "@/components/pages/pos-page"
 import { InventoryPage } from "@/components/pages/inventory-page"
 import { UserManagementPage } from "@/components/pages/user-management-page"
+import { ReportsPage } from "@/components/pages/reports-page"
 
 function AppContent() {
   const { currentUser, currentView, error, clearError } = useAppStore()
@@ -37,6 +38,7 @@ function AppContent() {
           {currentView === "pos" && <POSPage />}
           {currentView === "inventory" && <InventoryPage />}
           {currentView === "users" && <UserManagementPage />}
+          {currentView === "reports" && <ReportsPage />}
         </main>
         <ProfileModal />
       </div>

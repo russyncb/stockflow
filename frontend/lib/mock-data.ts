@@ -29,8 +29,8 @@ export interface Product {
   price: number
   stock: number
   category: string
-  sku: string
   taxRate: number
+  categoryId?: number | null
 }
 
 export interface User {
@@ -58,7 +58,6 @@ export interface Transaction {
   id: string
   items: {
     productName: string
-    sku: string
     quantity: number
     unitPrice: number
     lineTotal: number
